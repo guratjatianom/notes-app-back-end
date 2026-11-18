@@ -1,4 +1,3 @@
-import pkg from 'pg';
 import { Pool } from 'pg';
 import { nanoid } from 'nanoid';
 
@@ -11,11 +10,14 @@ class NoteRepositories {
     const id = nanoid(16);
     const createdAt = new Date().toISOString();
     const updatedAt = createdAt;
+
     const query = {
       text: 'INSERT INTO notes(id, title, body, tags, created_at, updated_at, owner) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id, title, body, tags, created_at, updated_at',
       values: [id, title, body, tags, createdAt, updatedAt, owner],
     };
+
     const result = await this.pool.query(query);
+
     return result.rows[0];
   }
 
@@ -24,22 +26,25 @@ class NoteRepositories {
       text: 'SELECT * FROM notes WHERE owner = $1',
       values: [owner],
     };
+
     const result = await this.pool.query(query);
+
     return result.rows;
   }
 
   async getNoteById(id) {
     const query = {
-      text: 'SELECT * FROM notes WHERE id = $1',
+      text: `SELECT notes.*, users.username
+FROM notes
+LEFT JOIN users ON users.id = notes.owner
+WHERE notes.id = $1`,
       values: [id],
     };
-
     const result = await this.pool.query(query);
-
     return result.rows[0];
   }
 
-  async editNoteById({ id, title, body, tags }) {
+  async editNote({ id, title, body, tags }) {
     const updatedAt = new Date().toISOString();
 
     const query = {
@@ -52,14 +57,13 @@ class NoteRepositories {
     return result.rows[0];
   }
 
-  async deleteNoteById(id) {
+  async deleteNote(id) {
     const query = {
       text: 'DELETE FROM notes WHERE id = $1 RETURNING id',
       values: [id],
     };
 
     const result = await this.pool.query(query);
-
     return result.rows[0].id;
   }
 
@@ -68,14 +72,19 @@ class NoteRepositories {
       text: 'SELECT * FROM notes WHERE id = $1',
       values: [id],
     };
+
     const result = await this.pool.query(query);
+
     if (!result.rows.length) {
       return null;
     }
+
     const note = result.rows[0];
+
     if (note.owner !== owner) {
       return null;
     }
+
     return result.rows[0];
   }
 }
